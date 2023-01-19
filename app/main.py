@@ -1,11 +1,18 @@
+from sqlalchemy.orm import Session
 from typing import Optional
-from fastapi import FastAPI, Response, status, HTTPException
+from fastapi import FastAPI, Response, status, HTTPException, Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from random import randint
 import psycopg2 as psc
 from psycopg2.extras import RealDictCursor
 import time
+
+from app.database import engine, get_db
+import app.models
+from app.models import Post
+app.models.Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI()
 
@@ -32,16 +39,21 @@ my_posts = [{"title": "post 1", "content": "content of post 1", "id": 1}, {
     "title": "fruits", "content": "Apple Mango", "id": 2}]
 
 
-def find_post(id):
-    for p in my_posts:
-        if p['id'] == id:
-            return p
+# def find_post(id):
+#     for p in my_posts:
+#         if p['id'] == id:
+#             return p
 
 
-def find_index(id):
-    for i, p in enumerate(my_posts):
-        if p['id'] == id:
-            return i
+# def find_index(id):
+#     for i, p in enumerate(my_posts):
+#         if p['id'] == id:
+#             return i
+
+
+@app.get("/sqlalchemy")
+def test_posts(db: Session = Depends(get_db)):
+    return {"status": "success"}
 
 
 @app.get("/")
@@ -93,7 +105,8 @@ def delete_post(id: str):
 
 @app.put("/posts/{id}")
 def update_post(id: str, post: Post):
-    cursor.execute("UPDATE posts SET title = %s , content = %s , published = %s WHERE id = %s RETURNING *", (post.title, post.content , post.published, id))
+    cursor.execute("UPDATE posts SET title = %s , content = %s , published = %s WHERE id = %s RETURNING *",
+                   (post.title, post.content, post.published, id))
     updated_post = cursor.fetchone()
     conn.commit()
 
@@ -104,5 +117,5 @@ def update_post(id: str, post: Post):
     # post_dict = post.dict()
     # post_dict['id'] = id
     # my_posts[index] = post_dict
-    
+
     return {'data': updated_post}
