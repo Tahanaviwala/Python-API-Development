@@ -1,3 +1,5 @@
+
+from app.utils import hash
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from fastapi import FastAPI, Response, status, HTTPException, Depends
@@ -64,7 +66,7 @@ def get_posts(db: Session = Depends(get_db)):
     return posts
 
 
-@app.post("/createposts", status_code=status.HTTP_201_CREATED , response_model=PostResponse)
+@app.post("/createposts", status_code=status.HTTP_201_CREATED, response_model=PostResponse)
 def create_posts(post: PostCreate, db: Session = Depends(get_db)):
     # cursor.execute("INSERT INTO posts (title, content, published) VALUES (%s, %s, %s) RETURNING * ",
     #                (post.title, post.content, post.published))
@@ -75,10 +77,10 @@ def create_posts(post: PostCreate, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     db.refresh(new_post)
-    return  new_post
+    return new_post
 
 
-@app.get("/posts/{id}" , response_model=PostResponse)
+@app.get("/posts/{id}", response_model=PostResponse)
 def get_post(id: int, db: Session = Depends(get_db)):
     # cursor.execute("SELECT * FROM posts WHERE id = %s", (id))
     # post = cursor.fetchone()
@@ -98,12 +100,11 @@ def delete_post(id: str, db: Session = Depends(get_db)):
     # deleted_post = cursor.fetchone()
     # conn.commit()
     post = db.query(models.Post).filter(models.Post.id == id)
-    
-    
+
     if post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"post with id: {id} does not exist.!")
-        
+
     post.delete(synchronize_session=False)
     db.commit()
 
@@ -117,16 +118,14 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     # updated_post = cursor.fetchone()
     # conn.commit()
 
-
     update_post = db.query(models.Post).filter(models.Post.id == id)
     get_post = update_post.first()
-    
 
     if get_post == None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"post with id: {id} does not exist.!")
-        
-    update_post.update(post.dict(),synchronize_session=False)
+
+    update_post.update(post.dict(), synchronize_session=False)
     db.commit()
 
     # post_dict = post.dict()
@@ -136,12 +135,25 @@ def update_post(id: int, post: Post, db: Session = Depends(get_db)):
     return update_post.first()
 
 
-
-@app.post("/createuser", status_code=status.HTTP_201_CREATED , response_model=UserResponse)
+@app.post("/createuser", status_code=status.HTTP_201_CREATED, response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
+
+    user.password = hash(user.password)
+
     new_user = models.User(**user.dict())
+
     # new_post = models.Post(title = post.title, content = post.content , published = post.published)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+@app.get("/user/{id}" , response_model= UserResponse)
+def get_user(id: int, db: Session = Depends(get_db) ):
+    user = db.query(models.User).filter(models.User.id == id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"User with id: {id} does not exist.!")
+
+    return user
